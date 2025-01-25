@@ -47,9 +47,9 @@
     }
   });
 
-  supabase.channel('Keep')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, () => loadNotes())
-    .subscribe();
+  // supabase.channel('Keep')
+  //   .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, () => loadNotes())
+  //   .subscribe();
 
   async function loadNotes() {
     const { data } = await supabase.from('notes')
@@ -537,7 +537,7 @@
                   </svg>
                 </button>
 
-                
+
               </div>
             </div>
           </div>
