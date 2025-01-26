@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { Search, RefreshCw, LayoutGrid, LogIn, LogOut } from 'lucide-svelte';
-  import { gridLayout } from '../../store';
+  import { Search, RefreshCw, LayoutGrid, LogIn, LogOut, Menu } from 'lucide-svelte';
+  import { gridLayout } from '../../Store/store';
   import { onMount } from 'svelte';
   import { supabase } from '../supabaseClient';
   import jQuery from 'jquery';
+  import GoogleAuth from './GoogleAuth.svelte';
 
   let user: any = null;
   let refreshTrigger = false;
+  let isMobileMenuOpen = false; 
 
   onMount(() => {
     const initialize = async () => {
@@ -52,54 +54,80 @@
     refreshTrigger = !refreshTrigger;
     window.location.reload();
   }
+
+  function toggleMobileMenu() {
+    isMobileMenuOpen = !isMobileMenuOpen;
+  }
 </script>
 
-<nav class="flex fixed z-50 w-full items-center justify-between px-4 py-2 pt-2 bg-white">
-  <div class="flex items-center my-2">
-    <h1 class="ml-12 text-xl font-sans text-gray-800">Keep</h1>
+<nav class="flex fixed z-50 w-full items-center justify-between px-4 py-2 pt-2 bg-white shadow-sm">
+  
+  <div class="flex items-center">
+    <h1 class="text-xl font-sans ml-12  text-gray-800">Keep</h1>
   </div>
-  <div class="flex-grow max-w-3xl mx-4">
+
+  <button on:click={toggleMobileMenu} class="sm:hidden p-2 rounded-full hover:bg-gray-100">
+    <Menu class="w-6 h-6 text-gray-600" />
+  </button>
+
+  <!-- Search Bar (Hidden on sm and below) -->
+  <div class="flex-grow max-w-3xl mx-4 hidden sm:block">
     <div class="relative">
       <input
-      type="text"
-      id="searchInput"
-      placeholder="Search"
-      class="w-full px-4 py-2 bg-gray-100 rounded-lg focus:bg-white focus:shadow-md focus:outline-none"
-    />
+        type="text"
+        id="searchInput"
+        placeholder="Search"
+        class="w-full px-4 py-2 bg-gray-100 rounded-lg focus:bg-white focus:shadow-md focus:outline-none"
+      />
       <Search class="absolute w-5 h-5 text-gray-500 transform -translate-y-1/2 right-3 top-1/2" />
     </div>
   </div>
-  <div class="flex items-center">
+
+  <!-- Desktop Actions (Hidden on sm and below) -->
+  <div class="hidden sm:flex items-center space-x-4">
     <button on:click={refreshNotes} class="p-2 rounded-full hover:bg-gray-100">
       <RefreshCw class="w-6 h-6 text-gray-600" />
     </button>
-    <button 
-      on:click={() => $gridLayout = !$gridLayout}
-      class="p-2 rounded-full hover:bg-gray-100"
-    >
+
+    <button on:click={() => $gridLayout = !$gridLayout} class="p-2 rounded-full hover:bg-gray-100">
       <LayoutGrid class="w-6 h-6 {$gridLayout ? 'text-blue-500' : 'text-gray-600'}" />
     </button>
-    {#if user}
-      <div class="flex items-center gap-2">
-        {#if user.user_metadata?.avatar_url}
-          <img
-            src={user.user_metadata.avatar_url}
-            alt="Profile"
-            class="w-8 h-8 ml-2 rounded-full"
-          />
-        {:else}
-          <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-            <span class="text-sm text-gray-600">{user.email?.charAt(0).toUpperCase()}</span>
-          </div>
-        {/if}
-        <button on:click={logout} class="p-2 rounded-full hover:bg-gray-100">
-          <LogOut class="w-6 h-6 text-gray-600" />
-        </button>
-      </div>
-    {:else}
-      <button on:click={login} class="p-2 rounded-full hover:bg-gray-100">
-        <LogIn class="w-6 h-6 text-gray-600" />
-      </button>
-    {/if}
+
+    <GoogleAuth />
   </div>
+
+  <!-- Mobile Menu (Visible on sm and below) -->
+  {#if isMobileMenuOpen}
+    <div class="sm:hidden absolute top-16 right-0 w-full bg-white shadow-lg">
+      <div class="flex flex-col items-center p-4 space-y-4">
+        <!-- Search Bar -->
+        <div class="w-full">
+          <div class="relative">
+            <input
+              type="text"
+              id="searchInputMobile"
+              placeholder="Search"
+              class="w-full px-4 py-2 bg-gray-100 rounded-lg focus:bg-white focus:shadow-md focus:outline-none"
+            />
+            <Search class="absolute w-5 h-5 text-gray-500 transform -translate-y-1/2 right-3 top-1/2" />
+          </div>
+        </div>
+
+        <button on:click={refreshNotes} class="w-full flex items-center justify-center p-2 rounded-full hover:bg-gray-100">
+          <RefreshCw class="w-6 h-6 text-gray-600" />
+          <span class="ml-2">Refresh</span>
+        </button>
+
+        <button on:click={() => $gridLayout = !$gridLayout} class="w-full hidden sm:block flex items-center justify-center p-2 rounded-full hover:bg-gray-100">
+          <LayoutGrid class="w-6 h-6 {$gridLayout ? 'text-blue-500' : 'text-gray-600'}" />
+          <span class="ml-2">Toggle Layout</span>
+        </button>
+
+        <GoogleAuth />
+
+        
+      </div>
+    </div>
+  {/if}
 </nav>
+

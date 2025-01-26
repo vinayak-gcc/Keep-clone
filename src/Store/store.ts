@@ -11,3 +11,7 @@ if (typeof window !== 'undefined') {
     localStorage.setItem('gridLayout', value.toString());
   });
 }
+
+export const session = writable({
+  user: null
+});
