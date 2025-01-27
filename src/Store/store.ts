@@ -15,3 +15,5 @@ if (typeof window !== 'undefined') {
 export const session = writable({
   user: null
 });
+
+export const theme = writable<'light' | 'dark'>('light');

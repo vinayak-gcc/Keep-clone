@@ -5,7 +5,7 @@
     import { createClient } from '@supabase/supabase-js';
     import { browser } from '$app/environment'; 
     import { gridLayout } from "../../Store/store";
-  
+
     const supabase = createClient(
       'https://hyaocbmqcrtqyhfwypci.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5YW9jYm1xY3J0cXloZnd5cGNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0Mjg4OTUsImV4cCI6MjA1MzAwNDg5NX0.fc4IdicgAMemJaSvdOt5MmVGJ93jinx1yUKExbvsKZ0'
@@ -231,12 +231,24 @@
         current.map(note => note.id === id ? { ...note, image: null } : note)
       );
     }
+    
   </script>
   
-  <div class="mx-auto px-4 my-8 py-2 mt-20 relative overflow-visible">
+  <div class="mx-auto px-4 my-8 py-2 mt-20 relative overflow-visible dark:bg-[#202124] dark:text-white">
+
+    {#if !userEmail}
+
+      <div class="flex flex-col items-center justify-center dark:bg-[#202124] dark:text-white">
+        <h1 class="text-2xl font-bold">Welcome to Keep</h1>
+        <p class="mt-2">Sign in to start taking notes</p>
+      </div>
+
+    {/if}
+    
     {#if userEmail}
       <div
-        class="mb-8 px-2 border space-y-2 border-black rounded-lg max-w-[30rem] w-full md:w-[30rem] lg:w-[40rem] place-content-center mx-auto transition-colors duration-300"
+        class="mb-8  border space-y-2 dark:bg-gray-800 dark:text-white border-black rounded-lg max-w-[30rem] w-full md:w-[30rem] lg:w-[40rem] 
+        place-content-center mx-auto transition-colors duration-300"
         style={
           tempImageUrl
             ? `background-image: url(${tempImageUrl})`
@@ -245,14 +257,14 @@
             : `background-color: ${newColor}`
         }
       >
-        <div class="flex flex-col group">
+        <div class="flex flex-col px-2 group dark:bg-[#202124] dark:text-white dark:border-white dark:border">
           <div class="flex gap-2 w-full">
             <div class="w-full">
               <input
                 type="text"
                 bind:value={newTitle}
                 placeholder="Title"
-                class="w-full border-none outline-none shadow-none bg-transparent placeholder-black"
+                class="w-full border-none outline-none shadow-none bg-transparent dark:placeholder-white placeholder-black"
               />
             </div>
   
@@ -276,7 +288,7 @@
               <input
                 bind:value={newContent}
                 placeholder="Take a note..."
-                class="p-2 w-full border-none shadow-none bg-transparent placeholder-black"
+                class="p-2 w-full border-none shadow-none bg-transparent dark:placeholder-white  placeholder-black"
               />
             </div>
   
@@ -307,7 +319,6 @@
                           <button
                             aria-label="label"
                             on:click={() => {
-                              showBackgroundOptions = !showBackgroundOptions;
                               newColor = color;
                               selectedImage = null;
                               tempImageUrl = null;
@@ -363,6 +374,7 @@
             </div>
           </div>
         </div>
+
       </div>
       
       <!-- Pinned and Unpinned Notes -->
@@ -579,7 +591,7 @@
     .masonry-grid {
       display: grid;
       gap: 1rem;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       grid-auto-flow: dense;
     }
   
@@ -591,15 +603,16 @@
     .masonry-grid {
       grid-template-columns: repeat(3, 1fr);
     }
+
     }
   
-    @media (max-width: 768px) {
+    @media (max-width: 468px) {
       .masonry-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-template-columns: 2fr;
       }
     }
   
-    @media (max-width: 480px) {
+    @media (max-width: 140px) {
       .masonry-grid {
         grid-template-columns: 1fr;
       }

@@ -83,8 +83,6 @@
                     updateAccounts(currentAccount);
                     setCookie('currentAccount', JSON.stringify(currentAccount));
 
-                    goto('/Notes');
-
                 } else {
                     currentAccount = null;
                     deleteCookie('currentAccount');
@@ -172,13 +170,19 @@
                 {/each}
 
                 <div class="border-t border-gray-100"></div>
-                <button on:click={() => login()} class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100" role="menuitem">
+
+                <button 
+                on:click={  () => { login() ; goto('/Notes') } } 
+                class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100" role="menuitem">
                     Add another account
                 </button>
+
                 <button on:click={logout} class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
                     Sign out
                 </button>
+
             </div>
+            
         </div>
     {/if}
 </div>
