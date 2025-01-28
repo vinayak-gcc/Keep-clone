@@ -20,10 +20,17 @@
       pinned: boolean;
       user_email: string;
       created_at?: string;
+      trashed: boolean;
+      archived: boolean;
     }>>([]);
-  
-    const pinnedNotes = derived(notes, $notes => $notes.filter(n => n.pinned));
-    const unpinnedNotes = derived(notes, $notes => $notes.filter(n => !n.pinned));
+    
+    const pinnedNotes = derived(notes, $notes => 
+      $notes.filter(n => n.pinned && !n.trashed && !n.archived)
+    );
+    
+    const unpinnedNotes = derived(notes, $notes => 
+      $notes.filter(n => !n.pinned && !n.trashed && !n.archived)
+    );
   
     let newTitle = "";
     let newContent = "";
@@ -32,13 +39,17 @@
     let userEmail = "";
     let newPinned = false;
     let showBackgroundOptions = false;
+    let showpinnedbg = false;
+    let showunpinnedbg = false;
     let tempImageUrl: string | null = null;
     
     const defaultBackgrounds = [
-      'https://images.unsplash.com/photo-1497864149936-d3163f0c0f4b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
-      'https://images.unsplash.com/photo-1451187580459-43490279c0fa?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
       'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
-      'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60'
+      'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+      'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+      'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
     ];
   
   
@@ -60,30 +71,37 @@
     });
   
     // Fetch only pinned notes
+      // Update loadPinnedNotes
     async function loadPinnedNotes() {
       const { data } = await supabase.from('notes')
         .select('*')
         .eq('user_email', userEmail)
-        .eq('pinned', true) // Fetch only pinned notes
+        .eq('pinned', true)
+        .eq('trashed', false)
+        .eq('archived', false)
         .order('created_at', { ascending: false });
-  
+
       if (data) {
         notes.update(current => {
-          const unpinned = current.filter(n => !n.pinned); // Keep existing unpinned notes
-          return [...data, ...unpinned]; // Merge pinned notes with existing unpinned notes
+          const otherNotes = current.filter(n => 
+            !n.pinned || n.trashed || n.archived
+          );
+          return [...data, ...otherNotes];
         });
       }
     }
-  
-    // Fetch all notes (including unpinned)
+
+    // Update loadNotes
     async function loadNotes() {
       const { data } = await supabase.from('notes')
         .select('*')
         .eq('user_email', userEmail)
+        .eq('trashed', false)
+        .eq('archived', false)
         .order('pinned', { ascending: false })
         .order('created_at', { ascending: false });
-  
-      if (data) notes.set(data); // Replace the entire notes store
+
+      if (data) notes.set(data);
     }
   
     async function addNote() {
@@ -117,7 +135,9 @@
               color: newColor,
               image: imageUrl,
               pinned: newPinned,
-              user_email: userEmail
+              user_email: userEmail,
+              trashed: false,
+              archived: false
             }])
             .select();
   
@@ -140,6 +160,18 @@
       }
     }
   
+    async function updateNoteImageUrl(id: number, imageUrl: string) {
+      await supabase
+        .from('notes')
+        .update({ image: imageUrl, color: 'transparent' })
+        .eq('id', id)
+        .eq('user_email', userEmail);
+
+      notes.update(current => 
+        current.map(note => note.id === id ? { ...note, image: imageUrl, color: 'transparent' } : note)
+      );
+    }
+
     function handleImageSelect(event: Event) {
   
       const file = (event.target as HTMLInputElement).files?.[0];
@@ -152,6 +184,24 @@
       }
     }
   
+    async function trashNote(id: number) {
+      await supabase
+        .from('notes')
+        .update({ trashed: true })
+        .eq('id', id);
+
+      notes.update(current => current.filter(n => n.id !== id));
+    }
+
+    async function archiveNote(id: number) {
+      await supabase
+        .from('notes')
+        .update({ archived: true })
+        .eq('id', id);
+
+      notes.update(current => current.filter(n => n.id !== id));
+    }
+
     async function updateNote(id: number, title: string, content: string) {
   
       await supabase
@@ -163,14 +213,16 @@
       notes.update(current => current.map(note => note.id === id ? { ...note, title, content } : note));
     }
   
-    async function changeNoteColor(id: number, color: string) {
-      await supabase
-        .from('notes')
-        .update({ color })
-        .eq('id', id)
-        .eq('user_email', userEmail);
-  
-      notes.update(current => current.map(note => note.id === id ? { ...note, color } : note));
+        async function changeNoteColor(id: number, color: string) {
+          await supabase
+            .from('notes')
+            .update({ color, image: null })
+            .eq('id', id)
+            .eq('user_email', userEmail);
+
+          notes.update(current => 
+            current.map(note => note.id === id ? { ...note, color, image: null } : note)
+          );
     }
   
     async function deleteNote(id: number) {
@@ -231,9 +283,22 @@
         current.map(note => note.id === id ? { ...note, image: null } : note)
       );
     }
-    
-  </script>
-  
+
+
+    let activeNoteMenu: { id: number | null, type: 'pinned' | 'unpinned' | null } = { 
+    id: null, 
+    type: null 
+     };
+
+     function handleClickOutside(event: MouseEvent) {
+        if (!(event.target as HTMLElement).closest('.background-button')) {
+          activeNoteMenu = { id: null, type: null };
+        }
+      }
+
+</script>
+
+  <!-- main page content -->
   <div class="mx-auto px-4 my-8 py-2 mt-20 relative overflow-visible dark:bg-[#202124] dark:text-white">
 
     {#if !userEmail}
@@ -246,6 +311,7 @@
     {/if}
     
     {#if userEmail}
+
       <div
         class="mb-8  border space-y-2 dark:bg-gray-800 dark:text-white border-black rounded-lg max-w-[30rem] w-full md:w-[30rem] lg:w-[40rem] 
         place-content-center mx-auto transition-colors duration-300"
@@ -257,6 +323,9 @@
             : `background-color: ${newColor}`
         }
       >
+        
+        <!-- New Note -->
+
         <div class="flex flex-col px-2 group dark:bg-[#202124] dark:text-white dark:border-white dark:border">
           <div class="flex gap-2 w-full">
             <div class="w-full">
@@ -275,6 +344,7 @@
                   newPinned ? 'text-yellow-500' : 'text-gray-400'
                 }`}
                 aria-label="Pin note"
+                title="Pin or Unpin Note"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 12V4H17V2H7V4H8V12L6 14V16H11.2V22H12.8V16H18V14L16 12Z" />
@@ -294,7 +364,9 @@
   
             <div class="flex items-center justify-between py-2">
               <div class="flex gap-2 relative">
+                
                 <button
+                title="Change Background"
                   aria-label="label"
                   on:click={() => (showBackgroundOptions = !showBackgroundOptions)}
                   class="relative flex items-start justify-start mt-1 text-gray-600 hover:bg-gray-100 p-1 rounded-full"
@@ -311,6 +383,7 @@
                 
                 <!-- BackGround Options -->
                 {#if showBackgroundOptions}
+                
                   <div class="absolute mt-12 z-50 left-0 top-0 bg-white rounded-lg shadow-xl p-4 w-64">
                     <!-- Background Options -->
                     <div class="flex flex-col gap-2">
@@ -330,6 +403,7 @@
                       </div>
   
                       <div class="flex gap-2">
+                       
                         {#each defaultBackgrounds as bg}
                           <button
                             aria-label="label"
@@ -343,13 +417,15 @@
                             style={`background-image: url('${bg}')`}
                           ></button>
                         {/each}
+
                       </div>
                     </div>
                   </div>
+
                 {/if}
   
                 <button aria-label="label">
-                  <label class="cursor-pointer bg-cover bg-center object-center">
+                  <label class="cursor-pointer bg-cover bg-center object-center"  title="Choose Image" >
                     <input type="file" accept="image/*" on:change={handleImageSelect} class="hidden" />
                     <div class="mr-2 flex items-start justify-start hover:bg-gray-100 p-1 rounded-full">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -377,6 +453,8 @@
 
       </div>
       
+
+      
       <!-- Pinned and Unpinned Notes -->
       <div class=" sm:mx-12 md:mx-28">
 
@@ -398,7 +476,9 @@
                 <div
                   class="absolute inset-0 rounded-lg"
                   style={`background-color: ${color}; opacity: 0.4;`}
-                ></div>
+                >
+                </div>
+                
                 <div class="relative z-10 h-full flex flex-col">
                   <div class="flex items-center justify-between mb-2">
                     <input
@@ -411,7 +491,7 @@
                       }}
                     />
                     <div class="flex gap-2">
-                      <button on:click={() => togglePin(id, pinned)} class="text-yellow-500">
+                      <button on:click={() => togglePin(id, pinned)} class="text-yellow-500" aria-label={pinned ? 'Unpin note' : 'Pin note'}>
                         {pinned ? '📌' : '📍'}
                       </button>
                     </div>
@@ -427,15 +507,80 @@
                   ></textarea>
     
                   <div class="flex gap-2 mt-4 items-center">
-                    {#each ["#f3f4f6", "yellow", "green", "orange", "pink", "purple"] as colorOption}
+
+                    <button
+                    title="Change Background"
+                      aria-label="label"
+                      on:click={() => (showpinnedbg = !showpinnedbg)}
+                      on:click={() => activeNoteMenu = activeNoteMenu.id === id && activeNoteMenu.type === 'pinned' 
+                      ? { id: null, type: null } 
+                      : { id: id, type: 'pinned' }}
+                      class="relative flex items-start justify-start mt-1 text-gray-600 hover:bg-gray-100 p-1 rounded-full"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                        />
+                      </svg>
+                    </button>
+                    
+                    <!-- BackGround Options -->
+                    {#if showpinnedbg}
+                        {#if activeNoteMenu.id === id && activeNoteMenu.type === 'pinned'}
+
+                            <div class=" background-button absolute mt-12 z-50 left-0 top-0 bg-white rounded-lg shadow-xl p-4 w-64">
+                           
+                              <!-- Background Options -->
+                              <div class="flex flex-col gap-2">
+                                <div class="flex gap-2">
+                                  
+                                  {#each ["#f3f4f6", "#fecaca", "#a7f3d0", "#bfdbfe", "#fde68a", "#ddd6fe"] as colorOption}
+                                  <button
+                                    aria-label="label"
+                                    on:click={() => changeNoteColor(id, colorOption)}
+                                    on:click={() => {
+                                      showpinnedbg = !showpinnedbg;
+                                    }}
+                                    class="w-8 h-8 rounded-md"
+                                    style={`background-color: ${colorOption};`}
+                                  ></button>
+                                  {/each}
+
+                                </div>
+            
+                                <div class="flex gap-2">
+                                  {#each defaultBackgrounds as bg}
+                                    <button
+                                      aria-label="label"
+                                      on:click={() => {
+                                        showpinnedbg = !showpinnedbg;
+                                        updateNoteImageUrl(id, bg);
+                                      }}
+                                      class="w-8 h-8 rounded-md bg-cover bg-center"
+                                      style={`background-image: url('${bg}')`}
+                                    ></button>
+                                  {/each}
+                                </div>
+                              </div>
+                              
+                            </div>
+
+                        {/if}
+                    {/if}
+
+                    <!-- {#each ["#f3f4f6", "yellow", "green", "orange", "pink", "purple"] as colorOption}
                       <button
                         aria-label="label"
                         on:click={() => changeNoteColor(id, colorOption)}
                         class={`w-4 h-4 rounded-full border-2 border-black`}
                         style={`background-color: ${colorOption};`}
                       ></button>
-                    {/each}
-                    <label class="cursor-pointer">
+                    {/each} -->
+                    
+                    <label class="cursor-pointer" title="Change Image" >
                       <input
                         type="file"
                         accept="image/*"
@@ -446,6 +591,7 @@
                         }}
                         class="hidden"
                       />
+                      
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path
                           stroke-linecap="round"
@@ -457,7 +603,7 @@
                     </label>
     
                     {#if image}
-                      <button on:click={() => removeNoteImage(id)} class="text-red-500" aria-label="label">
+                      <button on:click={() => removeNoteImage(id)} class="text-red-500" aria-label="label" title="Remove Image">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path
                             stroke-linecap="round"
@@ -469,13 +615,25 @@
                       </button>
                     {/if}
     
-                    <button on:click={() => deleteNote(id)} class="ml-auto" aria-label="label">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                     <button
+                     aria-label="label"
+                      on:click={() => archiveNote(id)} class="text-gray-500 hover:text-blue-500" title="Archive">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                       </svg>
                     </button>
+
+                    <button 
+                    aria-label="label"
+                    on:click={() => trashNote(id)} class="text-gray-500 hover:text-red-500 ml-auto" title="Trash">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+
                   </div>
                 </div>
+
               </div>
             {/each}
           </div>
@@ -486,6 +644,7 @@
         {#if $unpinnedNotes.length > 0}
           <h2 class="text-xl font-bold my-4">Others</h2>
           <div class="{$gridLayout ? 'grid grid-cols-1 max-w-[50rem] gap-4 mx-auto ' : 'masonry-grid'}">
+
             {#each $unpinnedNotes as { id, title, content, color, image, pinned } (id)}
               <div
                 class="masonry-item p-4 rounded-lg shadow-lg relative"
@@ -527,15 +686,86 @@
                   ></textarea>
     
                   <div class="flex gap-2 mt-4 items-center">
-                    {#each ["#f3f4f6", "yellow", "green", "orange", "pink", "purple"] as colorOption}
+
+                    <button
+                    title="Change Background"
+                      aria-label="label"
+                      on:click={() => {
+                        showunpinnedbg = !showunpinnedbg;
+                        activeNoteMenu = activeNoteMenu.id === id && activeNoteMenu.type === 'unpinned' 
+                          ? { id: null, type: null } 
+                          : { id: id, type: 'unpinned' };
+                      }}
+                      class="relative flex items-start justify-start mt-1 text-gray-600 hover:bg-gray-100 p-1 rounded-full"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                        />
+                      </svg>
+                    </button>
+                    
+                    <!-- BackGround Options -->
+                    {#if showunpinnedbg}
+
+                    {#if activeNoteMenu.id === id && activeNoteMenu.type === 'unpinned'}
+
+                      <div class="background-button absolute mt-12 z-50 left-0 top-0 bg-white rounded-lg shadow-xl p-4 w-64">
+                        <!-- Background Options -->
+                        <div class="flex flex-col gap-2">
+                          <div class="flex gap-2">
+
+                            {#each ["#f3f4f6", "#fecaca", "#a7f3d0", "#bfdbfe", "#fde68a", "#ddd6fe"] as colorOption}
+                              <button
+                                aria-label="label"
+                                on:click={() => changeNoteColor(id, colorOption)}
+                                on:click={() => {
+                                  showunpinnedbg = !showunpinnedbg;
+                                }}
+                                class="w-8 h-8 rounded-md"
+                                style={`background-color: ${colorOption};`}
+                              ></button>
+                            {/each}
+
+                          </div>
+      
+                          <div class="flex gap-2">
+
+                            {#each defaultBackgrounds as bg}
+                              <button
+                                aria-label="label"
+                                
+                                on:click={() => {
+                                  showunpinnedbg = !showunpinnedbg;
+                                  updateNoteImageUrl(id, bg);
+                                }}
+                                class="w-8 h-8 rounded-md bg-cover bg-center"
+                                style={`background-image: url('${bg}')`}
+                              ></button>
+
+                            {/each}
+                            
+                          </div>
+                        </div>
+                      </div>
+                    {/if}
+
+                    {/if}
+                    
+                    <!-- {#each ["#f3f4f6", "yellow", "green", "orange", "pink", "purple"] as colorOption}
                       <button
                         aria-label="label"
                         on:click={() => changeNoteColor(id, colorOption)}
                         class={`w-4 h-4 rounded-full border-2 border-black`}
                         style={`background-color: ${colorOption};`}
                       ></button>
-                    {/each}
-                    <label class="cursor-pointer">
+                    {/each} -->
+
+                    <label class="cursor-pointer " title="Change Image" >
+                      
                       <input
                         type="file"
                         accept="image/*"
@@ -546,6 +776,7 @@
                         }}
                         class="hidden"
                       />
+
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path
                           stroke-linecap="round"
@@ -557,7 +788,7 @@
                     </label>
     
                     {#if image}
-                      <button on:click={() => removeNoteImage(id)} class="text-red-500" aria-label="label">
+                      <button on:click={() => removeNoteImage(id)} class="text-red-500" aria-label="label" >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path
                             stroke-linecap="round"
@@ -569,11 +800,22 @@
                       </button>
                     {/if}
     
-                    <button on:click={() => deleteNote(id)} class="ml-auto" aria-label="label">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                      </svg>
+                   <button 
+                   aria-label="label"
+                   on:click={() => archiveNote(id)} class="text-gray-500 hover:text-blue-500" title="Archive">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                      </button>
+
+                      <button 
+                      aria-label="label"
+                      on:click={() => trashNote(id)} class="text-gray-500 hover:text-red-500 ml-auto" title="Trash">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                     </button>
+
                   </div>
                 </div>
               </div>
@@ -587,6 +829,7 @@
     {/if}
   </div>
   
+  <!-- Styles -->
   <style>
     .masonry-grid {
       display: grid;

@@ -66,7 +66,8 @@
                 };
                 updateAccounts(currentAccount);
 
-
+                goto('/Notes');
+            
             }
 
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
