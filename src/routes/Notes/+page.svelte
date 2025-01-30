@@ -27,19 +27,11 @@
   <!-- Main page content -->
   <div class="mx-auto px-4 my-8 py-2 mt-20 relative overflow-visible dark:bg-[#202124] dark:text-white">
     
-    <!-- Show This if User is Not Logged In -->
-    {#if !userEmail}
-      <div class="flex flex-col items-center justify-center dark:bg-[#202124] dark:text-white">
-        <h1 class="text-2xl font-bold">Welcome to Keep</h1>
-        <p class="mt-2">Sign in to start taking notes</p>
-      </div>
-    {/if}
+     <!-- New Note Form -->
+     <NewNote />
     
     <!-- Show This if User is Logged In -->
     {#if userEmail}
-
-    <!-- New Note Form -->
-    <NewNote />
 
     <!-- Pinned and Unpinned Notes -->
     <div class="sm:mx-12 md:mx-28">
