@@ -2,7 +2,7 @@
   import { Search, RefreshCw, LayoutGrid, Menu, Settings } from 'lucide-svelte';
   import { gridLayout, theme } from '../../Store/store';
   import { onMount } from 'svelte';
-  import { supabase } from '../supabaseClient';
+  import { supabase } from '../components/Supabase';
   import jQuery from 'jquery';
   import GoogleAuth from './GoogleAuth.svelte';
 

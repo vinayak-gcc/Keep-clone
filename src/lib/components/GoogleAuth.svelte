@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { supabase } from '../supabaseClient';
+    import { supabase } from '../components/Supabase';
     import { goto } from '$app/navigation'; 
 
     let isOpen = false;
