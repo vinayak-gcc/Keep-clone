@@ -146,7 +146,7 @@ let activeNoteMenu: { id: number | null, type: 'pinned' | 'unpinned' | null } =
                 on:change={(e) => {
                   const target = e.target as HTMLInputElement | null;
                   const file = target?.files?.[0];
-                  if (file) updateNoteImage(id, file);
+                  if (file) updateNoteImage(id, file, userEmail);
                 }}
                 class="hidden"
               />
@@ -162,7 +162,7 @@ let activeNoteMenu: { id: number | null, type: 'pinned' | 'unpinned' | null } =
             </label>
 
             {#if image}
-              <button on:click={() => removeNoteImage(id)} class="text-red-500" aria-label="label" >
+              <button on:click={() => removeNoteImage(id, userEmail)} class="text-red-500" aria-label="label" >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     stroke-linecap="round"
@@ -176,7 +176,7 @@ let activeNoteMenu: { id: number | null, type: 'pinned' | 'unpinned' | null } =
 
            <button 
            aria-label="label"
-           on:click={() => archiveNote(id)} class="text-gray-500 hover:text-blue-500" title="Archive">
+           on:click={() => archiveNote(id, userEmail)} class="text-gray-500 hover:text-blue-500" title="Archive">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                 </svg>
@@ -184,7 +184,7 @@ let activeNoteMenu: { id: number | null, type: 'pinned' | 'unpinned' | null } =
 
               <button 
               aria-label="label"
-              on:click={() => trashNote(id)} class="text-gray-500 hover:text-red-500 ml-auto" title="Trash">
+              on:click={() => trashNote(id, userEmail)} class="text-gray-500 hover:text-red-500 ml-auto" title="Trash">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>

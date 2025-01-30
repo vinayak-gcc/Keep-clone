@@ -89,7 +89,7 @@ style={tempImageUrl ? `background-image: url(${tempImageUrl})` : selectedImage &
          </div>
        </div>
      {/if}
-     <button aria-label="label">
+     <button aria-label="label" >
        <label class="cursor-pointer bg-cover bg-center object-center" title="Choose Image">
          <input type="file" accept="image/*" on:change={handleImageSelect} class="hidden" />
          <div class="mr-2 flex items-start justify-start hover:bg-gray-100 p-1 rounded-full">

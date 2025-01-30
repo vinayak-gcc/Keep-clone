@@ -84,7 +84,7 @@
   </div>
 
   <button on:click={toggleMobileMenu} class="sm:hidden p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-    <Menu class="w-6 h-6 text-gray-600 dark:text-white" />
+    <Menu class="w-6 h-6 text-gray-600 dark:text-white"  aria-label="Menu" />
   </button>
 
   <!-- Desktop Search -->
