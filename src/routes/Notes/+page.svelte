@@ -9,6 +9,7 @@
   import UnpinnedNotes from "$lib/components/UnpinnedNotes.svelte";
   
   let userEmail = "";
+  let isLoading = true;
 
   onMount(async () => {
     if (browser) {
@@ -16,7 +17,8 @@
       if (user) {
         userEmail = user.email || "";
         await loadPinnedNotes(userEmail); 
-        await loadNotes(userEmail); 
+        isLoading = false;
+        await loadNotes(userEmail);
       }
     }
   });
@@ -33,17 +35,25 @@
     <!-- Show This if User is Logged In -->
     {#if userEmail}
 
-    <!-- Pinned and Unpinned Notes -->
-    <div class="sm:mx-12 md:mx-28">
+    {#if isLoading}
 
-      <!-- Pinned Notes -->
-      <PinnedNotes />
+      <div class="text-center py-4">
+        <span class="loading loading-spinner loading-lg"></span>
+        <p class="mt-2">Loading your notes...</p>
+      </div>
 
-      <!-- Unpinned Notes -->
-      <UnpinnedNotes />
+    {:else}
 
-  </div>
+      <div class="sm:mx-12 md:mx-28">
+
+        <PinnedNotes />
+
+        <UnpinnedNotes />
+
+      </div>
 
     {/if}
+
+  {/if}
     
   </div>

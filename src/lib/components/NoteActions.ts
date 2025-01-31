@@ -1,8 +1,18 @@
-// noteService.ts
 import { supabase } from './Supabase';
 import { notes } from '../../Store/store';
+import { cache } from './Cache';
 
 export async function loadPinnedNotes(userEmail: string) {
+  const cacheKey = `notes:${userEmail}:pinned`;
+  const cachedData = cache.get(cacheKey);
+
+  if (cachedData) {
+    notes.update(current => {
+      const otherNotes = current.filter(n => !n.pinned || n.trashed || n.archived);
+      return [...cachedData, ...otherNotes];
+    });
+  }
+
   const { data } = await supabase.from('notes')
     .select('*')
     .eq('user_email', userEmail)
@@ -13,15 +23,23 @@ export async function loadPinnedNotes(userEmail: string) {
 
   if (data) {
     notes.update(current => {
-      const otherNotes = current.filter(n =>
-        !n.pinned || n.trashed || n.archived
-      );
-      return [...data, ...otherNotes]; // Combine pinned notes with non-pinned ones
+      const otherNotes = current.filter(n => !n.pinned || n.trashed || n.archived);
+      const newData = [...data, ...otherNotes];
+      cache.set(cacheKey, data);
+      return newData;
     });
   }
 }
 
 export async function loadNotes(userEmail: string) {
+  const cacheKey = `notes:${userEmail}:active`;
+  const cachedData = cache.get(cacheKey);
+
+  if (cachedData) {
+    notes.set(cachedData);
+    return;
+  }
+
   const { data } = await supabase.from('notes')
     .select('*')
     .eq('user_email', userEmail)
@@ -30,7 +48,10 @@ export async function loadNotes(userEmail: string) {
     .order('pinned', { ascending: false })
     .order('created_at', { ascending: false });
 
-  if (data) notes.set(data);
+  if (data) {
+    notes.set(data);
+    cache.set(cacheKey, data);
+  }
 }
 
 export async function addNote(newTitle: string, newContent: string, newColor: string, selectedImage: File | string | null, userEmail: string, newPinned: boolean) {
@@ -38,7 +59,6 @@ export async function addNote(newTitle: string, newContent: string, newColor: st
     let imageUrl: string | null = null;
 
     try {
-      // Handle file upload
       if (selectedImage instanceof File) {
         const fileExt = selectedImage.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
@@ -72,8 +92,8 @@ export async function addNote(newTitle: string, newContent: string, newColor: st
 
       if (error) throw error;
 
-      // Optimistically update the store
       notes.update(current => [...current, data[0]]);
+      cache.invalidateUser(userEmail);
     } catch (error) {
       console.error('Error:', error);
       alert(`Error: ${(error as Error).message}`);
@@ -81,7 +101,7 @@ export async function addNote(newTitle: string, newContent: string, newColor: st
   }
 }
 
-export async function updateNoteImage(id: number, file: File) {
+export async function updateNoteImage(id: number, file: File, userEmail: string) {
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
@@ -101,80 +121,78 @@ export async function updateNoteImage(id: number, file: File) {
       .update({ image: urlData.publicUrl })
       .eq('id', id);
 
-    // Update the note in the store
     notes.update(current => 
       current.map(note => note.id === id ? { ...note, image: urlData.publicUrl } : note)
     );
+    cache.invalidateUser(userEmail);
   } catch (error) {
     console.error('Image update failed:', error);
     alert('Image update failed.');
   }
 }
 
-export async function removeNoteImage(id: number) {
+export async function removeNoteImage(id: number, userEmail: string) {
   await supabase
     .from('notes')
     .update({ image: null })
     .eq('id', id);
   
-  // Update the note in the store
   notes.update(current => 
     current.map(note => note.id === id ? { ...note, image: null } : note)
   );
+  cache.invalidateUser(userEmail);
 }
 
-export async function trashNote(id: number) {
+export async function trashNote(id: number, userEmail: string) {
   await supabase
     .from('notes')
     .update({ trashed: true })
     .eq('id', id);
 
-  // Remove the trashed note from the store
   notes.update(current => current.filter(n => n.id !== id));
+  cache.invalidateUser(userEmail);
 }
 
-export async function archiveNote(id: number) {
+export async function archiveNote(id: number, userEmail: string) {
   await supabase
     .from('notes')
     .update({ archived: true })
     .eq('id', id);
 
-  // Remove the archived note from the store
   notes.update(current => current.filter(n => n.id !== id));
+  cache.invalidateUser(userEmail);
 }
 
 export async function updateNote(id: number, title: string, content: string, userEmail: string) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('notes')
     .update({ title, content })
     .eq('id', id)
     .eq('user_email', userEmail)
-    .select(); // Ensure data is returned after update
+    .select();
 
   if (error) {
     console.error("Update failed:", error);
     return;
   }
 
-  console.log("Updated note:", data);
-
   notes.update(current => current.map(note => 
     note.id === id ? { ...note, title, content } : note
   ));
+  cache.invalidateUser(userEmail);
 }
 
-
-export async function changeNoteColor(id: number, color: string , userEmail: string) {
+export async function changeNoteColor(id: number, color: string, userEmail: string) {
   await supabase
     .from('notes')
     .update({ color, image: null })
     .eq('id', id)
     .eq('user_email', userEmail);
 
-  // Update the note color in the store
   notes.update(current => 
     current.map(note => note.id === id ? { ...note, color, image: null } : note)
   );
+  cache.invalidateUser(userEmail);
 }
 
 export async function deleteNote(id: number, userEmail: string) {
@@ -189,33 +207,31 @@ export async function deleteNote(id: number, userEmail: string) {
     return;
   }
 
-  console.log("Deleted note:", id);
-  
-  // Instead of updating manually, reload the notes
-  await loadNotes(userEmail);
+  notes.update(current => current.filter(n => n.id !== id));
+  cache.invalidateUser(userEmail);
 }
 
-
-export async function togglePin(id: number, pinned: boolean , userEmail: string) {
+export async function togglePin(id: number, pinned: boolean, userEmail: string) {
   await supabase
     .from('notes')
     .update({ pinned: !pinned })
     .eq('id', id)
     .eq('user_email', userEmail);
 
-  // Update the pinned state in the store
   notes.update(current => current.map(note => note.id === id ? { ...note, pinned: !pinned } : note));
+  cache.invalidateUser(userEmail);
 }
 
-export async function updateNoteImageUrl(id: number, imageUrl: string , userEmail: string) {
+export async function updateNoteImageUrl(id: number, imageUrl: string, userEmail: string) {
   await supabase
     .from('notes')
     .update({ image: imageUrl, color: 'transparent' })
     .eq('id', id)
     .eq('user_email', userEmail);
 
-  // Update the image URL in the store
   notes.update(current => 
     current.map(note => note.id === id ? { ...note, image: imageUrl, color: 'transparent' } : note)
   );
+  cache.invalidateUser(userEmail);
 }
+
