@@ -24,7 +24,7 @@ export async function addNote(
 	newTitle: string,
 	newContent: string,
 	newColor: string,
- 	selectedImage: File | string | null,
+	selectedImage: File | string | null,
 	userEmail: string,
 	newPinned: boolean
 ) {
@@ -77,66 +77,68 @@ export async function addNote(
 }
 
 export async function updateNoteImage(id: number, file: File) {
-  console.log('Updating note image:', { id, file });
+	console.log('Updating note image:', { id, file });
 
-  try {
-    const { data: authData } = await supabase.auth.getUser();
+	try {
+		const { data: authData } = await supabase.auth.getUser();
 		const userEmail = authData?.user?.email;
 		if (!userEmail) {
 			throw new Error('User not authenticated');
 		}
-      // Step 1: Validate the file
-      if (!file || !(file instanceof File)) {
-          throw new Error('Invalid file provided');
-      }
+		// Step 1: Validate the file
+		if (!file || !(file instanceof File)) {
+			throw new Error('Invalid file provided');
+		}
 
-      console.log('File is valid:', { name: file.name, size: file.size });
+		console.log('File is valid:', { name: file.name, size: file.size });
 
-      // Step 2: Upload the file to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      console.log('Uploading file to storage:', { fileName });
+		// Step 2: Upload the file to Supabase Storage
+		const fileExt = file.name.split('.').pop();
+		const fileName = `${Math.random()}.${fileExt}`;
+		console.log('Uploading file to storage:', { fileName });
 
-      const { error: uploadError } = await supabase.storage.from('note_images').upload(fileName, file);
+		const { error: uploadError } = await supabase.storage
+			.from('note_images')
+			.upload(fileName, file);
 
-      if (uploadError) {
-          console.error('File upload failed:', uploadError);
-          throw uploadError;
-      }
+		if (uploadError) {
+			console.error('File upload failed:', uploadError);
+			throw uploadError;
+		}
 
-      console.log('File uploaded successfully:', { fileName });
+		console.log('File uploaded successfully:', { fileName });
 
-      // Step 3: Get the public URL of the uploaded file
-	  const { data: urlData } = supabase.storage.from('note_images').getPublicUrl(fileName);
+		// Step 3: Get the public URL of the uploaded file
+		const { data: urlData } = supabase.storage.from('note_images').getPublicUrl(fileName);
 
-      const imageUrl = urlData.publicUrl;
-      console.log('Public URL retrieved:', { imageUrl });
+		const imageUrl = urlData.publicUrl;
+		console.log('Public URL retrieved:', { imageUrl });
 
-      // Step 4: Update the database with the new image URL
-      console.log('Updating database with new image URL:', { id, imageUrl });
+		// Step 4: Update the database with the new image URL
+		console.log('Updating database with new image URL:', { id, imageUrl });
 
-      const { error: updateError } = await supabase
-          .from('notes')
-          .update({ image: imageUrl }) // Update only the 'image' field
-          .eq('id', id); // Ensure `id` matches the database type
+		const { error: updateError } = await supabase
+			.from('notes')
+			.update({ image: imageUrl }) // Update only the 'image' field
+			.eq('id', id); // Ensure `id` matches the database type
 
-      if (updateError) {
-          console.error('Database update failed:', updateError);
-          throw updateError;
-      }
+		if (updateError) {
+			console.error('Database update failed:', updateError);
+			throw updateError;
+		}
 
-      console.log('Database updated successfully');
+		console.log('Database updated successfully');
 
-      // Step 5: Update the local store
-      notes.update((current) =>
-          current.map((note) => (note.id === id ? { ...note, image: imageUrl } : note))
-      );
+		// Step 5: Update the local store
+		notes.update((current) =>
+			current.map((note) => (note.id === id ? { ...note, image: imageUrl } : note))
+		);
 
-      console.log('Local store updated successfully');
-  } catch (error) {
-      console.error('Error in updateNoteImage:', error);
-      alert('Image update failed. Check the console for details.');
-  }
+		console.log('Local store updated successfully');
+	} catch (error) {
+		console.error('Error in updateNoteImage:', error);
+		alert('Image update failed. Check the console for details.');
+	}
 }
 
 export async function trashNote(id: number) {
@@ -162,82 +164,82 @@ export async function archiveNote(id: number) {
 }
 
 export async function updateNoteImageUrl(id: number, imageUrl: string, userEmail: string) {
-  console.log('Updating note image URL:', { id, imageUrl, userEmail });
+	console.log('Updating note image URL:', { id, imageUrl, userEmail });
 
-  try {
-      const { data: authData } = await supabase.auth.getUser();
-      const userEmail = authData?.user?.email;
+	try {
+		const { data: authData } = await supabase.auth.getUser();
+		const userEmail = authData?.user?.email;
 
-      if (!userEmail) {
-          throw new Error('User not authenticated');
-      }
+		if (!userEmail) {
+			throw new Error('User not authenticated');
+		}
 
-      // Update only the 'image' field, leaving the 'color' field unchanged
-      const { error } = await supabase
-          .from('notes')
-          .update({ image: imageUrl }) // Only update the 'image' field
-          .eq('id', id)
-          .eq('user_email', userEmail);
+		// Update only the 'image' field, leaving the 'color' field unchanged
+		const { error } = await supabase
+			.from('notes')
+			.update({ image: imageUrl }) // Only update the 'image' field
+			.eq('id', id)
+			.eq('user_email', userEmail);
 
-      if (error) {
-          console.error('Database update failed:', error);
-          throw error;
-      }
+		if (error) {
+			console.error('Database update failed:', error);
+			throw error;
+		}
 
-      console.log('Database updated successfully');
+		console.log('Database updated successfully');
 
-      // Update the local store
-      notes.update((current) =>
-          current.map((note) =>
-              note.id === id ? { ...note, image: imageUrl } : note // Only update the 'image' field
-          )
-      );
+		// Update the local store
+		notes.update((current) =>
+			current.map(
+				(note) => (note.id === id ? { ...note, image: imageUrl } : note) // Only update the 'image' field
+			)
+		);
 
-      console.log('Local store updated successfully');
-  } catch (error) {
-      console.error('Error in updateNoteImageUrl:', error);
-      alert('Failed to update note image URL. Check the console for details.');
-  }
+		console.log('Local store updated successfully');
+	} catch (error) {
+		console.error('Error in updateNoteImageUrl:', error);
+		alert('Failed to update note image URL. Check the console for details.');
+	}
 }
 
 export async function updateNote(id: number, title: string, content: string, userEmail: string) {
-  console.log('Updating note:', { id, title, content, userEmail });
+	console.log('Updating note:', { id, title, content, userEmail });
 
-  try {
-    const { data: authData } = await supabase.auth.getUser();
+	try {
+		const { data: authData } = await supabase.auth.getUser();
 		const userEmail = authData?.user?.email;
 		if (!userEmail) {
 			throw new Error('User not authenticated');
 		}
-      if (!title.trim() || !content.trim() || !userEmail) {
-          throw new Error('Invalid input: title, content, or userEmail is missing');
-      }
+		if (!title.trim() || !content.trim() || !userEmail) {
+			throw new Error('Invalid input: title, content, or userEmail is missing');
+		}
 
-      console.log('Inputs are valid:', { id, title, content, userEmail });
+		console.log('Inputs are valid:', { id, title, content, userEmail });
 
-      const { error } = await supabase
-          .from('notes')
-          .update({ title, content })
-          .eq('id', id)
-          .eq('user_email', userEmail);
+		const { error } = await supabase
+			.from('notes')
+			.update({ title, content })
+			.eq('id', id)
+			.eq('user_email', userEmail);
 
-      if (error) {
-          console.error('Database update failed:', error);
-          throw error;
-      }
+		if (error) {
+			console.error('Database update failed:', error);
+			throw error;
+		}
 
-      console.log('Database updated successfully');
+		console.log('Database updated successfully');
 
-      notes.update((current) =>
-          current.map((note) => (note.id === id ? { ...note, title, content } : note))
-      );
+		notes.update((current) =>
+			current.map((note) => (note.id === id ? { ...note, title, content } : note))
+		);
 
-      console.log('Local store updated successfully');
-  } catch (error) {
-      console.error('Error in updateNote:', error);
-      alert('Failed to update note. Check the console for details.');
-  }
-} 
+		console.log('Local store updated successfully');
+	} catch (error) {
+		console.error('Error in updateNote:', error);
+		alert('Failed to update note. Check the console for details.');
+	}
+}
 export async function deleteNote(id: number, userEmail: string) {
 	console.log('Deleting note:', { id, userEmail });
 	const { error } = await supabase.from('notes').delete().eq('id', id).eq('user_email', userEmail);
@@ -249,47 +251,45 @@ export async function deleteNote(id: number, userEmail: string) {
 	}
 }
 
-
-
 export async function changeNoteColor(id: string, color: string) {
-  console.log('Changing note color:', { id, color });
+	console.log('Changing note color:', { id, color });
 
-  try {
-      const { data: authData } = await supabase.auth.getUser();
-      const userEmail = authData?.user?.email;
+	try {
+		const { data: authData } = await supabase.auth.getUser();
+		const userEmail = authData?.user?.email;
 
-      if (!userEmail) {
-          throw new Error('User not authenticated');
-      }
+		if (!userEmail) {
+			throw new Error('User not authenticated');
+		}
 
-      console.log('Authenticated user email:', userEmail);
+		console.log('Authenticated user email:', userEmail);
 
-      // Update the 'color' field and reset the 'image' field in the database
-      const { error } = await supabase
-          .from('notes')
-          .update({ color, image: null }) // Reset 'image' when changing color
-          .eq('id', id)
-          .eq('user_email', userEmail);
+		// Update the 'color' field and reset the 'image' field in the database
+		const { error } = await supabase
+			.from('notes')
+			.update({ color, image: null }) // Reset 'image' when changing color
+			.eq('id', id)
+			.eq('user_email', userEmail);
 
-      if (error) {
-          console.error('Error changing note color:', error);
-          throw error;
-      }
+		if (error) {
+			console.error('Error changing note color:', error);
+			throw error;
+		}
 
-      console.log('Database updated successfully');
+		console.log('Database updated successfully');
 
-      // Update the local store
-      notes.update((current) =>
-          current.map((note) =>
-              note.id === Number(id) ? { ...note, color, image: null } : note // Reset 'image'
-          )
-      );
+		// Update the local store
+		notes.update((current) =>
+			current.map(
+				(note) => (note.id === Number(id) ? { ...note, color, image: null } : note) // Reset 'image'
+			)
+		);
 
-      console.log('Local store updated successfully');
-  } catch (error) {
-      console.error('Error in changeNoteColor:', error);
-      alert(`Failed to change note color: ${(error as Error).message}`);
-  }
+		console.log('Local store updated successfully');
+	} catch (error) {
+		console.error('Error in changeNoteColor:', error);
+		alert(`Failed to change note color: ${(error as Error).message}`);
+	}
 }
 
 export async function togglePin(id: string, pinned: boolean) {
