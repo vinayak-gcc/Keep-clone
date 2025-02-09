@@ -63,7 +63,7 @@
             <div class="relative z-10">
           
               <div class="flex justify-between items-center mb-2">
-                <h3 class="font-bold text-lg">{note.title}</h3>
+                <h3 class="font-bold text-lg max-h-[2rem] overflow-hidden">{note.title}</h3>
                 <button
                   aria-label="Unarchive"
                   on:click={() => unarchiveNote(note.id)}

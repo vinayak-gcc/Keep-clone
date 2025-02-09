@@ -81,7 +81,8 @@
         {#each $trashedNotes as note (note.id)}
           <div
             class="masonry-item p-4 rounded-lg shadow-lg relative"
-            style={`background-color: ${note.color}; ${note.image ? `background-image: url(${note.image}); background-size: cover;  background-position: center;` : ''}`}
+            style={`background-color: ${note.color}; ${note.image ? `background-image: url(${note.image});
+             background-size: cover;  background-position: center;` : ''}`}
           >
             
             <div class="absolute inset-0 rounded-lg bg-black/10"></div>
@@ -89,7 +90,9 @@
             <div class="relative z-10">
               
               <div class="flex justify-between items-center mb-2">
-                <h3 class="font-bold text-lg">{note.title}</h3>
+                <h3 class="font-bold text-lg  max-h-[2rem] overflow-hidden">
+                  {note.title}
+                </h3>
                 <div class="flex gap-2">
                  
                     <button
