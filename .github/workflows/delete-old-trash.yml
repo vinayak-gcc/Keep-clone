@@ -1,0 +1,11 @@
+name: Delete Old Trash Notes
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Delete API
+        run: curl -X GET https://https://keep-clone-kappa.vercel.app//api/delete-old-trash

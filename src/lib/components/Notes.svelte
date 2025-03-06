@@ -9,6 +9,304 @@
 		togglePin,
 		changeNoteColor
 	} from '../components/NoteActions';
+	import { onMount, afterUpdate } from 'svelte';
+
+	// Current search term
+	let currentSearchTerm = '';
+	let searchCleared = false;
+
+	
+	// Flag to track if filtering is in progress to prevent race conditions
+	let isFiltering = false;
+
+	// Subscribe to store changes to re-apply filter when notes change
+	$: {
+		// When either pinnedNotes or unpinnedNotes change, reapply the filter
+		if ($pinnedNotes || $unpinnedNotes) {
+			if (currentSearchTerm && !isFiltering) {
+				// Use setTimeout to ensure DOM has updated after store changes
+				setTimeout(() => applyFilterToDOM(currentSearchTerm), 100);
+			}
+		}
+	}
+
+	onMount(() => {
+		// Check for query parameter in URL
+		const urlParams = new URLSearchParams(window.location.search);
+		const queryParam = urlParams.get('query');
+		
+		console.log('Query parameter:', queryParam);
+		
+		// If there's a query parameter, use it for filtering notes
+		if (queryParam) {
+			currentSearchTerm = queryParam;
+			setTimeout(() => applyFilterToDOM(currentSearchTerm), 300);
+			
+			// Update search input to match URL parameter
+			const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+			if (searchInput) {
+				searchInput.value = queryParam;
+			}
+		}
+		// Otherwise check if there's a stored search term in localStorage
+		else {
+			const lastSearch = localStorage.getItem('lastNoteSearch');
+			if (lastSearch) {
+				currentSearchTerm = lastSearch;
+				setTimeout(() => applyFilterToDOM(currentSearchTerm), 300);
+				
+				// Update search input to match stored search
+				const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+				if (searchInput) {
+					searchInput.value = lastSearch;
+				}
+			}
+		}
+	});
+
+	// This function only handles the DOM manipulation part
+	function applyFilterToDOM(searchTerm: string) {
+		if (isFiltering) return; // Prevent concurrent filtering operations
+		
+		isFiltering = true;
+		// console.log(`Applying filter with search term: ${searchTerm}`);
+		
+		// Get all notes as an array to work with
+		const noteElements = Array.from(document.querySelectorAll('.masonry-item'));
+		// console.log(`Found ${noteElements.length} note elements`);
+		
+		// Skip filtering if search term is empty
+		if (!searchTerm || searchTerm.trim() === '') {
+			noteElements.forEach(note => {
+				(note as HTMLElement).style.display = 'block';
+			});
+			
+			const noResultsMsg = document.getElementById('no-results-message');
+			if (noResultsMsg) {
+				noResultsMsg.style.display = 'none';
+			}
+			
+			isFiltering = false;
+			return;
+		}
+		
+		const searchTermLower = searchTerm.toLowerCase();
+		let visibleCount = 0;
+		
+		// Filter each note
+		noteElements.forEach(note => {
+			const noteElement = note as HTMLElement;
+			const titleElement = noteElement.querySelector('input');
+			const contentElement = noteElement.querySelector('textarea'); 
+			
+			// Get text content safely
+			const title = titleElement ? (titleElement.value || '').toLowerCase() : '';
+			const content = contentElement ? (contentElement.value || '').toLowerCase() : '';
+			
+			// Log for debugging
+			// console.log(`Note title: "${title}", content: "${content.substring(0, 20)}..."`);
+			
+			// Check if note matches search
+			if (title.includes(searchTermLower) || content.includes(searchTermLower)) {
+				noteElement.style.display = 'block';
+				visibleCount++;
+				// console.log('Showing note - match found');
+			} else {
+				noteElement.style.display = 'none';
+				// console.log('Hiding note - no match');
+			}
+		});
+		
+		// console.log(`Visible notes after filtering: ${visibleCount}`);
+		
+		// Show a message if no notes match
+		let noResultsMsg = document.getElementById('no-results-message');
+		
+		if (visibleCount === 0) {
+			if (!noResultsMsg) {
+				noResultsMsg = document.createElement('div');
+				noResultsMsg.id = 'no-results-message';
+				noResultsMsg.className = 'text-center p-4 text-gray-500 dark:text-gray-400';
+				
+				const masonryGrid = document.querySelector('.masonry-grid');
+				if (masonryGrid && masonryGrid.parentNode) {
+					masonryGrid.parentNode.insertBefore(noResultsMsg, masonryGrid.nextSibling);
+				} else {
+					// Fallback if masonry-grid not found
+					document.body.appendChild(noResultsMsg);
+				}
+				console.log('Created no results message');
+			}
+			
+			noResultsMsg.textContent = `No notes found matching "${searchTerm}"`;
+			noResultsMsg.style.display = 'block';
+		} else if (noResultsMsg) {
+			noResultsMsg.style.display = 'none';
+		}
+		
+		isFiltering = false;
+	}
+
+
+// Replace the clearSearch function:
+function clearSearch() {
+  // Mark that search has been deliberately cleared
+  searchCleared = true;
+  
+  // Clear the current search term
+  currentSearchTerm = '';
+  
+  // Remove from localStorage
+  localStorage.removeItem('lastNoteSearch');
+  
+  // Update URL to remove query parameter
+  const url = new URL(window.location);
+  url.searchParams.delete('query');
+  window.history.pushState({}, '', url);
+  
+  // Clear the search input field
+  const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+  if (searchInput) {
+    searchInput.value = '';
+  }
+  
+  // Show all notes
+  applyFilterToDOM('');
+}
+
+// Modify the handleSearch function to reset the cleared flag:
+function handleSearch(searchTerm: string) {
+  console.log(`Search initiated with term: ${searchTerm}`);
+  
+  // Reset the cleared flag once user actively searches
+  if (searchTerm) {
+    searchCleared = false;
+  }
+  
+  currentSearchTerm = searchTerm;
+  
+  // Only store non-empty search terms
+  if (searchTerm) {
+    localStorage.setItem('lastNoteSearch', searchTerm);
+  } else {
+    localStorage.removeItem('lastNoteSearch');
+  }
+  
+  // Update URL without full page reload
+  const url = new URL(window.location);
+  if (searchTerm) {
+    url.searchParams.set('query', searchTerm);
+  } else {
+    url.searchParams.delete('query');
+  }
+  window.history.pushState({}, '', url);
+  
+  // Apply filtering
+  applyFilterToDOM(searchTerm);
+}
+
+// Modify the onMount function:
+onMount(() => {
+  // Don't load previous searches if the search was just cleared
+  if (searchCleared) return;
+  
+  // Check for query parameter in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryParam = urlParams.get('query');
+  
+  console.log('Query parameter:', queryParam);
+  
+  // If there's a query parameter, use it for filtering notes
+  if (queryParam) {
+    currentSearchTerm = queryParam;
+    setTimeout(() => applyFilterToDOM(currentSearchTerm), 300);
+    
+    // Update search input to match URL parameter
+    const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+    if (searchInput) {
+      searchInput.value = queryParam;
+    }
+  }
+  // Otherwise check if there's a stored search term in localStorage
+  else {
+    const lastSearch = localStorage.getItem('lastNoteSearch');
+    if (lastSearch) {
+      currentSearchTerm = lastSearch;
+      setTimeout(() => applyFilterToDOM(currentSearchTerm), 300);
+      
+      // Update search input to match stored search
+      const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.value = lastSearch;
+      }
+    }
+  }
+});
+
+// Add this to prevent the reactive statement from re-applying search
+// when search has been cleared
+$: {
+  if ($pinnedNotes || $unpinnedNotes) {
+    if (currentSearchTerm && !isFiltering && !searchCleared) {
+      setTimeout(() => applyFilterToDOM(currentSearchTerm), 100);
+    }
+  }
+}
+
+// Add event listener for input field changes 
+// Make sure to add this in your onMount function:
+onMount(() => {
+  // Previous code...
+  
+  // Add event listener to search input to detect when user clears it manually
+  const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+  if (searchInput) {
+    searchInput.addEventListener('input', (event) => {
+      const target = event.target as HTMLInputElement;
+      if (target.value === '') {
+        clearSearch();
+      }
+    });
+  }
+});
+
+// Modify the onMount function to respect when search has been deliberately cleared
+onMount(() => {
+  // Check for query parameter in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryParam = urlParams.get('query');
+  
+//   console.log('Query parameter:', queryParam);
+  
+  // Only apply saved search if clearSearch hasn't been called recently
+  if (!isFiltering) {
+    // If there's a query parameter, use it for filtering notes
+    if (queryParam) {
+      currentSearchTerm = queryParam;
+      setTimeout(() => applyFilterToDOM(currentSearchTerm), 300);
+      
+      // Update search input to match URL parameter
+      const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.value = queryParam;
+      }
+    }
+    // Otherwise check if there's a stored search term in localStorage
+    else {
+      const lastSearch = localStorage.getItem('lastNoteSearch');
+      if (lastSearch) {
+        currentSearchTerm = lastSearch;
+        setTimeout(() => applyFilterToDOM(currentSearchTerm), 300);
+        
+        // Update search input to match stored search
+        const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.value = lastSearch;
+        }
+      }
+    }
+  }
+});
 
 	interface Note {
 		id: number;
@@ -53,8 +351,6 @@
 			showModal = false;
 		}
 	}
-
-	
 </script>
 
 <svelte:window on:click={handleClickOutside} />
@@ -81,7 +377,7 @@
 						<div class="mb-2 flex items-center justify-between">
 							<input
 								bind:value={note.title}
-								class="pointer-events-none w-full border-none bg-transparent text-lg font-bold"
+								class="pointer-events-none w-full border-none bg-transparent text-lg font-bold note-title"
 								readonly
 							/>
 							<button
@@ -93,7 +389,7 @@
 						</div>
 						<textarea
 							bind:value={note.content}
-							class="pointer-events-none w-full flex-grow resize-none border-none bg-transparent"
+							class="pointer-events-none w-full flex-grow resize-none border-none bg-transparent note-content"
 							readonly
 						></textarea>
 
@@ -207,6 +503,9 @@
 	{/if}
 {/each}
 
+<!-- No results message placeholder -->
+<div id="no-results-message" class="text-center p-4 text-gray-500 dark:text-gray-400" style="display: none;"></div>
+
 {#if expandedNote}
 	<section
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
@@ -223,14 +522,13 @@
 				<div class="mb-4 flex items-center justify-between">
 					<input
 						bind:value={expandedNote.title}
-						class="w-full border-none bg-transparent text-2xl font-bold"
+						class="w-full border-none bg-transparent text-2xl font-bold note-title"
 						on:input={(e) => {
 							if (expandedNote) {
 								updateNote(
 									expandedNote.id,
 									(e.target as HTMLInputElement).value,
 									expandedNote.content,
-									userEmail
 								);
 							} else {
 								console.error('expandedNote is null');
@@ -244,14 +542,13 @@
 				</div>
 				<textarea
 					bind:value={expandedNote.content}
-					class="min-h-[200px] w-full resize-none border-none bg-transparent text-lg"
+					class="min-h-[200px] w-full resize-none border-none bg-transparent text-lg note-content"
 					on:input={(e) => {
 						if (expandedNote) {
 							updateNote(
 								expandedNote.id,
 								expandedNote.title,
 								(e.target as HTMLInputElement).value,
-								userEmail
 							);
 						} else {
 							console.error('expandedNote is null');
@@ -392,7 +689,7 @@
 							class="h-8 w-8 rounded-md bg-cover bg-center"
 							style={`background-image: url('${bg}')`}
 							on:click={() => {
-								updateNoteImageUrl(selectedNoteId!, bg, userEmail);
+								updateNoteImageUrl(selectedNoteId!, bg);
 								showModal = false;
 							}}
 						>

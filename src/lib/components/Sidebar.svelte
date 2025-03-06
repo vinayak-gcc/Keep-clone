@@ -33,7 +33,7 @@
 
 <!-- Sidebar -->
 <div
-  class="sidebar  fixed top-0 mt-5 left-0 h-screen transition-transform duration-200 ease-in-out z-40 bg-gray-100 
+  class="sidebar  fixed top-0 left-0  h-screen transition-transform duration-200 ease-in-out z-40 bg-gray-100 
    dark:bg-[#37393e] dark:text-white hover:dark:text-black "
   class:translate-x-0={isOpen}
   class:-translate-x-full={!isOpen}

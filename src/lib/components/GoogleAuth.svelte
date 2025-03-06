@@ -8,7 +8,6 @@
   let user: any = null;
   let currentAccount: any = null;
   let accounts: any[] = [];
-  let authListenerSet = false; // Ensure the auth listener is only set once
 
   // Account management functions
   const loadAccounts = () => {
@@ -42,42 +41,67 @@
   onMount(() => {
     loadAccounts();
 
-    let initialLoadComplete = false;  // Ensure initial load is tracked
-
-    if (!authListenerSet) {
-      authListenerSet = true;  // Ensure we only set the listener once
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          user = session?.user ?? null;
-          if (user) {
-            currentAccount = {
-              id: user.id,
-              name: user.user_metadata?.full_name || user.email,
-              email: user.email,
-              avatar: user.user_metadata?.avatar_url || ''
-            };
-            updateAccounts(currentAccount);
-            goto('/Notes'); // Navigate after updating the account
-          } else {
-            currentAccount = null;
-            goto('/'); // If no user, redirect to home
-          }
-
-          // Handle the initial loading state
-          if (!initialLoadComplete) {
-            initialLoadComplete = true;
-            loading = false; // Once the user data is loaded, update loading state
-          }
+    // Get initial session and set up listener
+    const getInitialSession = async () => {
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Set user and account based on session
+      if (session?.user) {
+        user = session.user;
+        currentAccount = {
+          id: user.id,
+          name: user.user_metadata?.full_name || user.email,
+          email: user.email,
+          avatar: user.user_metadata?.avatar_url || ''
+        };
+        updateAccounts(currentAccount);
+        
+        // Redirect to Notes if on home page
+        if (window.location.pathname === '/') {
+          goto('/Notes');
         }
-      );
+      }
 
-      // Cleanup the subscription when the component is destroyed
-      return () => subscription.unsubscribe();
-    }
+      // Set loading to false
+      loading = false;
+    };
+
+    // Set up auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        user = session?.user ?? null;
+        
+        if (user) {
+          currentAccount = {
+            id: user.id,
+            name: user.user_metadata?.full_name || user.email,
+            email: user.email,
+            avatar: user.user_metadata?.avatar_url || ''
+          };
+          updateAccounts(currentAccount);
+          
+          // Redirect to Notes if on home page
+          if (window.location.pathname === '/') {
+            goto('/Notes');
+          }
+        } else {
+          currentAccount = null;
+          goto('/');
+        }
+      }
+    );
+
+    // Initial session check
+    getInitialSession();
+
+    // Cleanup listener on component destroy
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   });
 
-  // Toggle dropdown and auth functions remain the same
+  // Toggle dropdown and auth functions
   function toggleDropdown() { isOpen = !isOpen; }
 
   async function login(loginHint?: string) {
@@ -90,7 +114,6 @@
     });
 
     if (error) console.error('Login error:', error);
-    else goto('/Notes');
   }
 
   async function logout() {
@@ -106,9 +129,9 @@
   }
 </script>
 
-<!-- Updated loading state: using a fixed height instead of h-screen -->
+<!-- Dropdown UI remains the same -->
 {#if loading}
-  <div class="flex items-center justify-center ">
+  <div class="flex items-center justify-center">
     <p>Loading...</p>
   </div>
 {:else}
@@ -152,7 +175,7 @@
           <div class="border-t border-gray-100"></div>
 
           <button 
-            on:click={() => { login(); goto('/Notes'); }} 
+            on:click={() => { login(); }} 
             class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-100" role="menuitem">
             Add another account
           </button>

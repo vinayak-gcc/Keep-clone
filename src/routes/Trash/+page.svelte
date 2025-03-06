@@ -48,13 +48,17 @@
     }
   
     async function restoreNote(id: number) {
-      const { error } = await supabase
-        .from('notes')
-        .update({ trashed: false })
-        .eq('id', id);
-  
-      if (!error) await loadTrashedNotes();
-    }
+  const { error } = await supabase
+    .from('notes')
+    .update({ trashed: false })
+    .eq('id', id)
+    .eq('user_email', userEmail); // Ensure it belongs to the user
+
+  if (!error) {
+    trashedNotes.update(notes => notes.filter(note => note.id !== id)); 
+  }
+}
+
   
     async function deletePermanently(id: number) {
       const { error } = await supabase

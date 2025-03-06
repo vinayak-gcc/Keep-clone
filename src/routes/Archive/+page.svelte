@@ -36,13 +36,17 @@
     }
   
     async function unarchiveNote(id: number) {
-      const { error } = await supabase
-        .from('notes')
-        .update({ archived: false })
-        .eq('id', id);
-  
-      if (!error) await loadArchivedNotes();
-    }
+  const { error } = await supabase
+    .from('notes')
+    .update({ archived: false })
+    .eq('id', id)
+    .eq('user_email', userEmail); // Ensure it only updates the user's note
+
+  if (!error) {
+    archivedNotes.update(notes => notes.filter(note => note.id !== id)); // Remove from UI immediately
+  }
+}
+
   </script>
   
   <div class="mx-auto mx-10 px-4 my-8 py-2 mt-20 relative overflow-visible dark:bg-[#202124] dark:text-white">

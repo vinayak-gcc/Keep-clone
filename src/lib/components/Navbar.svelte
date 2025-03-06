@@ -5,11 +5,14 @@
     import { supabase } from '../components/Supabase';
     import jQuery from 'jquery';
     import GoogleAuth from './GoogleAuth.svelte';
+    import {downloadNotesBackup} from '../components/NoteActions'
 
     let user: any = null;
     let refreshTrigger = false;
     let isMobileMenuOpen = false;
     let isSettingsOpen = false;
+    let searchTerm: string = '';
+    let searchTimeout: ReturnType<typeof setTimeout>;
 
     function setTheme(newTheme: 'light' | 'dark') {
         $theme = newTheme;
@@ -38,9 +41,28 @@
         };
         initializeAuth();
 
-        // Handle search input
+        // Enhanced search functionality
         jQuery('#searchInput').on('input', (event) => {
-            const searchTerm = jQuery(event.target).val()?.toString().trim().toLowerCase() || '';
+            clearTimeout(searchTimeout);
+            searchTerm = jQuery(event.target).val()?.toString().trim().toLowerCase() || '';
+            
+            // Store the current search term in localStorage
+            if (searchTerm) {
+                localStorage.setItem('lastNoteSearch', searchTerm);
+                
+                // Add debounce to prevent too many redirects while typing
+                searchTimeout = setTimeout(() => {
+                    // Redirect to Notes page with query parameter
+                    window.location.href = `/Notes?query=${encodeURIComponent(searchTerm)}`;
+                }, 500); // 500ms debounce
+            }
+        });
+
+        // Handle search form submission
+        jQuery('#searchForm').on('submit', (event) => {
+            event.preventDefault();
+            clearTimeout(searchTimeout);
+            
             if (searchTerm) {
                 // Redirect to Notes page with query parameter
                 window.location.href = `/Notes?query=${encodeURIComponent(searchTerm)}`;
@@ -65,7 +87,9 @@
 
         return () => {
             jQuery('#searchInput').off('input');
+            jQuery('#searchForm').off('submit');
             document.removeEventListener('click', handleClickOutside);
+            clearTimeout(searchTimeout);
         };
     });
 
@@ -86,6 +110,14 @@
 
     function toggleMobileMenu() {
         isMobileMenuOpen = !isMobileMenuOpen;
+    }
+
+    function handleSearchSubmit(event: Event) {
+        event.preventDefault();
+        if (searchTerm) {
+            clearTimeout(searchTimeout);
+            window.location.href = `/Notes?query=${encodeURIComponent(searchTerm)}`;
+        }
     }
 </script>
 
@@ -109,20 +141,53 @@
     </button>
 
     <!-- Search Bar -->
-    <div class="mx-4 hidden max-w-3xl flex-grow dark:bg-[#202124] dark:text-white sm:block">
+    <form 
+        id="searchForm"
+        on:submit={handleSearchSubmit}
+        class="mx-4 hidden max-w-3xl flex-grow dark:bg-[#202124] dark:text-white sm:block"
+    >
         <div class="relative">
             <input
                 type="text"
                 id="searchInput"
                 placeholder="Search"
+                bind:value={searchTerm}
                 class="w-full rounded-lg bg-gray-100 px-4 py-2 focus:bg-white focus:shadow-md focus:outline-none dark:bg-[#202124] dark:text-white dark:placeholder-white"
                 aria-label="Search notes"
             />
-            <Search
-                class="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-500 dark:text-gray-400"
-            />
+            <button 
+                type="submit"
+                class="absolute right-3 top-1/2 -translate-y-1/2 transform"
+                aria-label="Search notes"
+            >
+                <Search
+                    class="h-5 w-5 text-gray-500 dark:text-gray-400"
+                />
+            </button>
         </div>
-    </div>
+    </form>
+
+    <!-- Mobile Search (shows when menu is open) -->
+    {#if isMobileMenuOpen}
+        <div class="absolute left-0 right-0 top-14 bg-white p-4 shadow-md dark:bg-[#202124] sm:hidden">
+            <form on:submit={handleSearchSubmit}>
+                <div class="relative">
+                    <input
+                        type="text"
+                        placeholder="Search"
+                        bind:value={searchTerm}
+                        class="w-full rounded-lg bg-gray-100 px-4 py-2 focus:bg-white focus:shadow-md focus:outline-none dark:bg-[#202124] dark:text-white dark:placeholder-white"
+                    />
+                    <button 
+                        type="submit"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 transform"
+                    >
+                        <Search class="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                    </button>
+                </div>
+            </form>
+        </div>
+    {/if}
 
     <!-- Actions and Settings -->
     <div class="hidden items-center space-x-4 sm:flex">
@@ -172,6 +237,13 @@
                             Light Mode
                         </button>
                     {/if}
+                    <button
+                    on:click={() => downloadNotesBackup(user.email)}
+                    class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+                    aria-label="Download notes backup"
+                >
+                    Download Your Data
+                </button>
                 </div>
             {/if}
         </div>

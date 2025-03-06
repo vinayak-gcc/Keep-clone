@@ -12,7 +12,6 @@
   // Ensure only one subscription exists
   if (!authSubscription) {
     authSubscription = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event);
 
       if (session?.user?.email && session.user.email !== userEmail) {
         userEmail = session.user.email;
