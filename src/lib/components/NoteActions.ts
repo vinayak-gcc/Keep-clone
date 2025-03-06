@@ -49,7 +49,7 @@ async function backupNotesToSupabase(notesData: Note[], userEmail: string) {
         // Only backup if more than 24 hours have passed since last backup
         // (or adjust timing as needed)
         if (currentTime - lastBackupTime < 24 * 60 * 60 * 1000) {
-            console.log('Skipping backup: last backup was made less than 24 hours ago');
+            // console.log('Skipping backup: last backup was made less than 24 hours ago');
             return { data: null, skipped: true };
         }
     }
@@ -91,15 +91,15 @@ export async function loadNotes(userEmail: string) {
     }
 
     // Optimized Cloudinary URL transformation
-    const getCloudinaryUrl = (imageUrl: string) => {
-        const cloudName = 'dj7gxh9tt'; // Your Cloudinary cloud name
-        return `https://res.cloudinary.com/${cloudName}/image/fetch/f_auto,q_auto,dpr_auto,w_500,h_300,c_fill/${encodeURIComponent(imageUrl)}`;
-    };
+    // const getCloudinaryUrl = (imageUrl: string) => {
+    //     const cloudName = 'dj7gxh9tt'; // Your Cloudinary cloud name
+    //     return `https://res.cloudinary.com/${cloudName}/image/fetch/f_auto,q_auto,dpr_auto,w_500,h_300,c_fill/${encodeURIComponent(imageUrl)}`;
+    // };
 
     // Process notes and update images efficiently
     const processedNotes = data.map(note => ({
         ...note,
-        image: note.image ? getCloudinaryUrl(note.image) : undefined
+        // image: note.image ? getCloudinaryUrl(note.image) : undefined
     }));
 
     // Save backup to Supabase Storage

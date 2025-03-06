@@ -9,7 +9,7 @@
 		togglePin,
 		changeNoteColor
 	} from '../components/NoteActions';
-	import { onMount, afterUpdate } from 'svelte';
+	import { onMount} from 'svelte';
 
 	// Current search term
 	let currentSearchTerm = '';
@@ -35,7 +35,7 @@
 		const urlParams = new URLSearchParams(window.location.search);
 		const queryParam = urlParams.get('query');
 		
-		console.log('Query parameter:', queryParam);
+		// console.log('Query parameter:', queryParam);
 		
 		// If there's a query parameter, use it for filtering notes
 		if (queryParam) {
@@ -160,7 +160,7 @@ function clearSearch() {
   localStorage.removeItem('lastNoteSearch');
   
   // Update URL to remove query parameter
-  const url = new URL(window.location);
+  const url = new URL(window.location.href);
   url.searchParams.delete('query');
   window.history.pushState({}, '', url);
   
@@ -175,35 +175,6 @@ function clearSearch() {
 }
 
 // Modify the handleSearch function to reset the cleared flag:
-function handleSearch(searchTerm: string) {
-  console.log(`Search initiated with term: ${searchTerm}`);
-  
-  // Reset the cleared flag once user actively searches
-  if (searchTerm) {
-    searchCleared = false;
-  }
-  
-  currentSearchTerm = searchTerm;
-  
-  // Only store non-empty search terms
-  if (searchTerm) {
-    localStorage.setItem('lastNoteSearch', searchTerm);
-  } else {
-    localStorage.removeItem('lastNoteSearch');
-  }
-  
-  // Update URL without full page reload
-  const url = new URL(window.location);
-  if (searchTerm) {
-    url.searchParams.set('query', searchTerm);
-  } else {
-    url.searchParams.delete('query');
-  }
-  window.history.pushState({}, '', url);
-  
-  // Apply filtering
-  applyFilterToDOM(searchTerm);
-}
 
 // Modify the onMount function:
 onMount(() => {
@@ -214,7 +185,7 @@ onMount(() => {
   const urlParams = new URLSearchParams(window.location.search);
   const queryParam = urlParams.get('query');
   
-  console.log('Query parameter:', queryParam);
+//   console.log('Query parameter:', queryParam);
   
   // If there's a query parameter, use it for filtering notes
   if (queryParam) {
@@ -317,7 +288,6 @@ onMount(() => {
 		pinned: boolean;
 	}
 
-	let userEmail = '';
 	let showModal = false;
 	let selectedNoteId: number | null = null;
 	let expandedNote: Note | null = null;
@@ -419,7 +389,7 @@ onMount(() => {
 							</svg>
 
 							<!-- Update Note Image Action -->
-							<label class="cursor-pointer" on:click|stopPropagation>
+							<button class="cursor-pointer" aria-label="UpdateNote" on:click|stopPropagation>
 								<input
 									type="file"
 									accept="image/*"
@@ -446,7 +416,7 @@ onMount(() => {
 										d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
 									/>
 								</svg>
-							</label>
+							</button>
 
 							<!-- Archive Note Action -->
 							<svg
@@ -459,7 +429,7 @@ onMount(() => {
 								tabindex="0"
 								aria-label="Archive Note"
 								on:keydown={(e) => e.key === 'Enter' && archiveNote(note.id)}
-								on:click|stopPropagation={(e) => {
+								on:click|stopPropagation={() => {
 									archiveNote(note.id);
 									expandedNote = null;
 								}}
@@ -483,7 +453,7 @@ onMount(() => {
 								tabindex="0"
 								aria-label="Trash Note"
 								on:keydown={(e) => e.key === 'Enter' && trashNote(note.id)}
-								on:click|stopPropagation={(e) => {
+								on:click|stopPropagation={() => {
 									trashNote(note.id);
 									expandedNote = null;
 								}}
@@ -507,15 +477,20 @@ onMount(() => {
 <div id="no-results-message" class="text-center p-4 text-gray-500 dark:text-gray-400" style="display: none;"></div>
 
 {#if expandedNote}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<section
+		tabindex="-1"
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
 		role="dialog"
 		aria-modal="true"
 		on:click={() => (expandedNote = null)}
+		on:keydown={(e) => e.key === 'Escape' && (expandedNote = null)}
 	>
 		<div
 			class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
-			on:click|stopPropagation
+			on:click|stopPropagation={() => {}}
+			on:keydown|stopPropagation={() => {}}
+			role="document"
 			style={`background-image: ${expandedNote.image ? `url('${expandedNote.image}')` : 'none'}; background-color: ${expandedNote.color}; background-size: cover;`}
 		>
 			<div class="relative z-10">
@@ -534,11 +509,16 @@ onMount(() => {
 								console.error('expandedNote is null');
 							}
 						}}
+						aria-label="Note Title"
 					/>
 					<button
 						on:click={() => (expandedNote = null)}
-						class="text-xl text-black hover:text-gray-800">✕</button
+						on:keydown={(e) => e.key === 'Enter' && (expandedNote = null)}
+						class="text-xl text-black hover:text-gray-800"
+						aria-label="Close Note"
 					>
+						✕
+					</button>
 				</div>
 				<textarea
 					bind:value={expandedNote.content}
@@ -554,30 +534,36 @@ onMount(() => {
 							console.error('expandedNote is null');
 						}
 					}}
-				>
-				</textarea>
+					aria-label="Note Content"
+				></textarea>
 				<div class="modal-actions mt-4 flex justify-end gap-4">
-					<!-- Toggle Modal Action -->
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-6 w-6"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						aria-label="Toggle Color/Image Modal"
+					<button
 						on:keydown={(e) => e.key === 'Enter' && toggleModal(expandedNote!.id, e)}
 						on:click|stopPropagation={(e) => toggleModal(expandedNote!.id, e)}
+						aria-label="Toggle Color/Image Modal"
+						class="p-2 focus:outline-none"
 					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-						/>
-					</svg>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-6 w-6"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+							/>
+						</svg>
+					</button>
 
-					<!-- Update Note Image Action -->
-					<label class="cursor-pointer" on:click|stopPropagation>
+					<label 
+						class="cursor-pointer" 
+						on:click|stopPropagation={() => {}}
+						on:keydown|stopPropagation={(e) => e.key === 'Enter' && e.currentTarget.querySelector('input')?.click()}
+					>
 						<input
 							type="file"
 							accept="image/*"
@@ -590,6 +576,7 @@ onMount(() => {
 								}
 							}}
 							class="hidden"
+							aria-label="Update Note Image"
 						/>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -597,7 +584,6 @@ onMount(() => {
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
-							aria-label="Update Note Image"
 						>
 							<path
 								stroke-linecap="round"
@@ -608,49 +594,55 @@ onMount(() => {
 						</svg>
 					</label>
 
-					<!-- Archive Note Action -->
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-6 w-6"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						aria-label="Archive Note"
+					<button
 						on:keydown={(e) => e.key === 'Enter' && archiveNote(expandedNote!.id)}
-						on:click|stopPropagation={(e) => {
+						on:click|stopPropagation={() => {
 							archiveNote(expandedNote!.id);
 							expandedNote = null;
 						}}
+						aria-label="Archive Note"
+						class="p-2 focus:outline-none"
 					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-						/>
-					</svg>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-6 w-6"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+							/>
+						</svg>
+					</button>
 
-					<!-- Trash Note Action -->
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="h-6 w-6"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						aria-label="Trash Note"
+					<button
 						on:keydown={(e) => e.key === 'Enter' && trashNote(expandedNote!.id)}
-						on:click|stopPropagation={(e) => {
+						on:click|stopPropagation={() => {
 							trashNote(expandedNote!.id);
 							expandedNote = null;
 						}}
+						aria-label="Trash Note"
+						class="p-2 focus:outline-none"
 					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-						/>
-					</svg>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-6 w-6"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+							/>
+						</svg>
+					</button>
 				</div>
 			</div>
 		</div>
@@ -658,14 +650,20 @@ onMount(() => {
 {/if}
 
 {#if showModal}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		class="modal-content fixed z-[60] w-72 flex-wrap"
 		style="left: {modalPosition.x}px; top: {modalPosition.y}px;"
-		on:click|stopPropagation
+		on:mousedown|stopPropagation
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
 	>
 		<div
 			class="w-64 -translate-x-1/2 transform rounded-lg bg-white px-0 py-2 shadow-xl"
-			on:click|stopPropagation
+			on:mousedown|stopPropagation
+			role="document"
+			aria-label="ColorOption"
 		>
 			<div class="flex flex-col gap-2">
 				<div class="flex flex-wrap justify-center gap-2">
@@ -675,7 +673,7 @@ onMount(() => {
 							aria-label="Change Color"
 							style={`background-color: ${colorOption};`}
 							on:click={() => {
-								changeNoteColor(selectedNoteId!, colorOption);
+								changeNoteColor(selectedNoteId!.toString(), colorOption);
 								showModal = false;
 							}}
 						>

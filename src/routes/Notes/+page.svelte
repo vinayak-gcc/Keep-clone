@@ -7,7 +7,7 @@
   let userEmail = "";
   let authSubscription: any = null; // Holds Supabase listener
 
-  console.log("Component initialized");
+  // console.log("Component initialized");
 
   // Ensure only one subscription exists
   if (!authSubscription) {
@@ -15,7 +15,7 @@
 
       if (session?.user?.email && session.user.email !== userEmail) {
         userEmail = session.user.email;
-        console.log(" User email:", userEmail);
+        // console.log(" User email:", userEmail);
 
       
           loadNotes(userEmail);

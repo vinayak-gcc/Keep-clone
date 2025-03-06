@@ -167,29 +167,7 @@
         </div>
     </form>
 
-    <!-- Mobile Search (shows when menu is open) -->
-    {#if isMobileMenuOpen}
-        <div class="absolute left-0 right-0 top-14 bg-white p-4 shadow-md dark:bg-[#202124] sm:hidden">
-            <form on:submit={handleSearchSubmit}>
-                <div class="relative">
-                    <input
-                        type="text"
-                        placeholder="Search"
-                        bind:value={searchTerm}
-                        class="w-full rounded-lg bg-gray-100 px-4 py-2 focus:bg-white focus:shadow-md focus:outline-none dark:bg-[#202124] dark:text-white dark:placeholder-white"
-                    />
-                    <button 
-                        type="submit"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 transform"
-                    >
-                        <Search class="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                    </button>
-                </div>
-            </form>
-        </div>
-    {/if}
-
-    <!-- Actions and Settings -->
+    <!-- Actions and Settings (Desktop) -->
     <div class="hidden items-center space-x-4 sm:flex">
         <!-- Settings Dropdown -->
         <div class="relative">
@@ -238,17 +216,90 @@
                         </button>
                     {/if}
                     <button
-                    on:click={() => downloadNotesBackup(user.email)}
-                    class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
-                    aria-label="Download notes backup"
-                >
-                    Download Your Data
-                </button>
+                        on:click={() => downloadNotesBackup(user.email)}
+                        class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+                        aria-label="Download notes backup"
+                    >
+                        Download Your Data
+                    </button>
                 </div>
             {/if}
         </div>
 
-        <!-- Google Auth -->
+        <!-- Google Auth (Desktop) -->
         <GoogleAuth />
     </div>
+
+    <!-- Mobile Menu (expanded) -->
+    {#if isMobileMenuOpen}
+        <div class="absolute left-0 right-0 top-14 z-50 bg-white p-4 shadow-md dark:bg-[#202124] sm:hidden">
+            <!-- Mobile Search -->
+            <form on:submit={handleSearchSubmit} class="mb-4">
+                <div class="relative">
+                    <input
+                        type="text"
+                        placeholder="Search"
+                        bind:value={searchTerm}
+                        class="w-full rounded-lg bg-gray-100 px-4 py-2 focus:bg-white focus:shadow-md focus:outline-none dark:bg-[#202124] dark:text-white dark:placeholder-white"
+                    />
+                    <button 
+                        type="submit"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 transform"
+                    >
+                        <Search class="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Mobile Settings Menu -->
+             <div>
+            <div class="grid grid-cols-4 gap-2">
+                <button
+                    on:click={refreshNotes}
+                    class="flex flex-col items-center justify-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    aria-label="Refresh notes"
+                >
+                    <RefreshCw class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+                    <span class="mt-1 text-xs">Refresh</span>
+                </button>
+                
+                <button
+                    on:click={() => ($gridLayout = !$gridLayout)}
+                    class="flex flex-col items-center justify-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    aria-label="Toggle grid layout"
+                >
+                    <LayoutGrid class="h-6 w-6 {$gridLayout ? 'text-blue-500' : 'text-gray-600 dark:text-white'}" />
+                    <span class="mt-1 text-xs">Layout</span>
+                </button>
+                
+                <button
+                    on:click={() => setTheme($theme === 'light' ? 'dark' : 'light')}
+                    class="flex flex-col items-center justify-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    aria-label="{$theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}"
+                >
+                    <Settings class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+                    <span class="mt-1 text-xs">{$theme === 'light' ? 'Dark' : 'Light'}</span>
+                </button>
+
+                                     
+            <!-- Google Auth (Mobile) -->
+            <div class="mt-2">
+                <GoogleAuth />
+            </div>
+       
+
+            </div>
+                     
+            <button
+            on:click={() => downloadNotesBackup(user.email)}
+            class="flex flex-col items-center justify-center rounded-md p-2 mx-4 hover:bg-gray-100 dark:hover:bg-gray-700 col-span-3"
+            aria-label="Download notes backup"
+        >
+            <span class="text-sm">Download Your Data</span>
+        </button>
+
+    </div>
+      
+        </div>
+    {/if}
 </nav>
