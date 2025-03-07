@@ -17,25 +17,18 @@ interface Note {
 }
 
 async function backupNotesToSupabase(notesData: Note[], userEmail: string) {
-    // Get the current authenticated user
-    const { data: user, error: authError } = await supabase.auth.getUser();
+    // Use email as the primary identifier for both filename and storage path
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `${sanitizedEmail}_${Date.now()}.json`;
+    const file = new File([JSON.stringify(notesData)], fileName, { type: 'application/json' });
     
-    if (authError) {
-        console.error('Error getting user:', authError);
-        return { error: 'Error getting user' };
-    }
-    
-    if (!user) {
-        console.error('User not authenticated');
-        return { error: 'User not authenticated' };
-    }
-    
-    const userId = user.user.id;
+    // Use sanitized email as the folder path
+    const filePath = `${sanitizedEmail}/${fileName}`;
     
     // Check when the last backup was made
     const { data: existingBackups, error: listError } = await supabase.storage
         .from('NotesBackup')
-        .list(userId);
+        .list(sanitizedEmail);
     
     if (!listError && existingBackups && existingBackups.length > 0) {
         // Sort backups by created_at to find the most recent one
@@ -47,20 +40,10 @@ async function backupNotesToSupabase(notesData: Note[], userEmail: string) {
         const currentTime = Date.now();
         
         // Only backup if more than 24 hours have passed since last backup
-        // (or adjust timing as needed)
         if (currentTime - lastBackupTime < 24 * 60 * 60 * 1000) {
-            // console.log('Skipping backup: last backup was made less than 24 hours ago');
             return { data: null, skipped: true };
         }
     }
-    
-    // Use email as the primary identifier in filename
-    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9]/g, '_');
-    const fileName = `${sanitizedEmail}_${Date.now()}.json`;
-    const file = new File([JSON.stringify(notesData)], fileName, { type: 'application/json' });
-    
-    // Include userId in the path to comply with RLS policies
-    const filePath = `${userId}/${fileName}`;
     
     const { data, error } = await supabase.storage
         .from('NotesBackup')
@@ -89,12 +72,6 @@ export async function loadNotes(userEmail: string) {
         console.error('Error loading notes:', error);
         return;
     }
-
-    // Optimized Cloudinary URL transformation
-    // const getCloudinaryUrl = (imageUrl: string) => {
-    //     const cloudName = 'dj7gxh9tt'; // Your Cloudinary cloud name
-    //     return `https://res.cloudinary.com/${cloudName}/image/fetch/f_auto,q_auto,dpr_auto,w_500,h_300,c_fill/${encodeURIComponent(imageUrl)}`;
-    // };
 
     // Process notes and update images efficiently
     const processedNotes = data.map(note => ({

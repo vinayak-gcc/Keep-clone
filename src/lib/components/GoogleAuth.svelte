@@ -129,7 +129,6 @@
   }
 </script>
 
-<!-- Dropdown UI remains the same -->
 {#if loading}
   <div class="flex items-center justify-center">
     <p>Loading...</p>

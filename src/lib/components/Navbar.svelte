@@ -25,22 +25,6 @@
         const savedTheme = localStorage.getItem('theme') || 'light';
         setTheme(savedTheme as 'light' | 'dark');
 
-        // Initialize Supabase authentication
-        const initializeAuth = async () => {
-            const {
-                data: { user: initialUser }
-            } = await supabase.auth.getUser();
-            user = initialUser;
-
-            const {
-                data: { subscription }
-            } = supabase.auth.onAuthStateChange((event, session) => {
-                user = session?.user ?? null;
-            });
-            return () => subscription.unsubscribe();
-        };
-        initializeAuth();
-
         // Enhanced search functionality
         jQuery('#searchInput').on('input', (event) => {
             clearTimeout(searchTimeout);
