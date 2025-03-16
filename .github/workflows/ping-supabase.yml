@@ -1,0 +1,14 @@
+name: Ping Supabase Database
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *' # Runs every 3 days at midnight UTC
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        run: |
+          curl -X POST 'https://keep-clone-kappa.vercel.app/api/ping-database' \
+          -H "Content-Type: application/json" \
