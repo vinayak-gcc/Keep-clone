@@ -6,11 +6,21 @@ export async function GET() {
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
     
     console.log(`Deleting notes trashed before ${twoWeeksAgo.toISOString()}`);
+console.log('Date filter:', twoWeeksAgo.toISOString());
+
+const testQuery = await supabase
+    .from('notes')
+    .select('count')
+    .lte('created_at', twoWeeksAgo.toISOString())
+    .eq('trashed', true);
+
+console.log('Matching records count:', testQuery.data);
+console.log('Query check:', testQuery.error ? 'Error: ' + testQuery.error.message : 'OK');
     
     const { data, error } = await supabase
-        .from('notes')
+        .from('notes')  // Use 'notes' as the table name
         .delete()
-        .lte('updated_at', twoWeeksAgo.toISOString())
+        .lte('created_at', twoWeeksAgo.toISOString())
         .eq('trashed', true)
         .select(); // Add this to get count of deleted items
     
